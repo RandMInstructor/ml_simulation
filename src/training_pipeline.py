@@ -619,8 +619,44 @@ def train_val_split(X_train: np.ndarray, y_train: np.ndarray, val_size: float = 
     return (X_train, y_train) , (X_val, y_val)
 
 
+# Simple Model
+def get_simple_example_model() -> tf.keras.Model:
+        # Create a simple model
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=(32, 32, 1)),
+        tf.keras.layers.Conv2D(32, 3, activation='relu'),
+        tf.keras.layers.MaxPooling2D(),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dense(10, activation='softmax')
+    ])
+    
+    model.compile(
+        optimizer='adam',
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+    
+    return model
+    
+
 # Basic MNIST Example
-def basic_mnist_example():
+def get_basic_mnist_example_model() -> tf.keras.Model:
+    # Define the model
+    model = tf.keras.models.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28)),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+    ])
+
+    # Compile the model
+    model.compile(optimizer='adam',
+                loss='sparse_categorical_crossentropy',
+                metrics=['accuracy'])
+    
+    return model
+
+def basic_public_mnist_example():
     """
     Basic example using the MNIST dataset.
     """
@@ -636,16 +672,7 @@ def basic_mnist_example():
     x_test = x_test.astype('float32') / 255.0
 
     # Define the model
-    model = tf.keras.models.Sequential([
-    tf.keras.layers.Flatten(input_shape=(28, 28)),
-    tf.keras.layers.Dense(128, activation='relu'),
-    tf.keras.layers.Dense(10, activation='softmax')
-    ])
-
-    # Compile the model
-    model.compile(optimizer='adam',
-                loss='sparse_categorical_crossentropy',
-                metrics=['accuracy'])
+    model = get_basic_mnist_example_model()
 
     # Train the model
     model.fit(x_train, y_train, epochs=5)
@@ -655,14 +682,10 @@ def basic_mnist_example():
     print('Test loss:', loss)
     print('Test accuracy:', accuracy)
 
-
-def demo_incorporated_mnist_example():
+def demo_incorporated_mnist_example(model, save_dir = './results/training_pipeline_main'):
     """
     Basic example using the MNIST dataset to test all custom functions.
     """
-
-    # Establish save path
-    save_dir = './results/training_pipeline_main'
 
     # Load the MNIST dataset
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
@@ -672,19 +695,13 @@ def demo_incorporated_mnist_example():
 
     # Preprocess the data
     x_train = x_train.astype('float32') / 255.0
+    x_val = x_val.astype('float32') / 255.0
     x_test = x_test.astype('float32') / 255.0
 
-    # Define the model
-    model = tf.keras.models.Sequential([
-    tf.keras.layers.Flatten(input_shape=(28, 28)),
-    tf.keras.layers.Dense(128, activation='relu'),
-    tf.keras.layers.Dense(10, activation='softmax')
-    ])
 
-    # Compile the model
-    model.compile(optimizer='adam',
-                loss='sparse_categorical_crossentropy',
-                metrics=['accuracy'])
+    #model = mnist_model_selection()
+    #model = get_basic_mnist_model()
+    #model = get_model_selector_cnn(input_shape=(28, 28, 1))
 
     # Create a training pipeline
     pipeline = TrainingPipeline(model=model, model_type='keras')
@@ -732,26 +749,12 @@ def demo_incorporated_mnist_example():
     # Plot confusion matrix
     pipeline.plot_confusion_matrix(X_test=x_test, y_test=y_test)
 
-def original_main():
+def original_main(model):
     
     # Establish save path
     save_dir = './results/training_pipeline_main'
 
-    # Create a simple model
-    model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=(32, 32, 1)),
-        tf.keras.layers.Conv2D(32, 3, activation='relu'),
-        tf.keras.layers.MaxPooling2D(),
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(64, activation='relu'),
-        tf.keras.layers.Dense(10, activation='softmax')
-    ])
-    
-    model.compile(
-        optimizer='adam',
-        loss='sparse_categorical_crossentropy',
-        metrics=['accuracy']
-    )
+
     
     # Create a training pipeline
     pipeline = TrainingPipeline(model=model, model_type='keras')
@@ -786,6 +789,12 @@ def original_main():
 
 # Example usage
 if __name__ == "__main__":
-    demo_incorporated_mnist_example()
+    model = get_simple_example_model()
+    original_main(model)
+    
+    basic_public_mnist_example()
+
+    model = get_basic_mnist_example_model()
+    demo_incorporated_mnist_example(model)
 
 

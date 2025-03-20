@@ -18,6 +18,26 @@ from src.residuals_analyzer import ResidualsAnalyzer
 from src.visualization_analyzer import VisualizationAnalyzer
 
 
+
+from src.model_selector import ModelSelector
+
+from src.training_pipeline import demo_incorporated_mnist_example
+from src.model_selector import get_model_selector_cnn_example_model
+
+def test_model_selector_with_mnist_pipeline(base_dir='test_functions'):
+    # Create a model selector
+    selector = ModelSelector(random_state=42)
+    # Establish save path
+    results_dir = 'test_model_selector_with_mnist_pipeline'
+    save_dir = os.path.join(base_dir, results_dir)
+
+    # Get a CNN model
+    model = get_model_selector_cnn_example_model(input_shape=(28, 28, 1), selector=selector)
+    # Run the model through a training and evaluation pipeline
+    demo_incorporated_mnist_example(model, save_dir=save_dir)
+    return True
+
+
 def test_image_data_generator():
     """Test the ImageDataGenerator class."""
     print("\n=== Testing ImageDataGenerator ===")
@@ -348,9 +368,16 @@ def main():
     print("=== Running Tests for ML Simulation Environment ===")
     
     # Create test results directory
-    os.makedirs('./test_results/residuals', exist_ok=True)
-    os.makedirs('./test_results/visualization', exist_ok=True)
-    
+    residuals_unit_test_dir = './unit_test_results/residuals'
+    visualization_unit_test_dir = './unit_test_results/visualization'
+    other_unit_test_dir = './unit_test_results/other'
+    os.makedirs(residuals_unit_test_dir, exist_ok=True)
+    os.makedirs(visualization_unit_test_dir, exist_ok=True)
+    os.makedirs(other_unit_test_dir, exist_ok=True)
+
+    # Test ModelSelector with MNIST pipeline
+    test_model_selector_with_mnist_pipeline(base_dir=other_unit_test_dir)
+
     # Test ImageDataGenerator
     test_image_data_generator()
     

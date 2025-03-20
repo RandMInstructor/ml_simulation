@@ -44,7 +44,7 @@ class ModelSelector:
     def get_model(self, 
                  model_type: str = 'mlp', 
                  n_classes: int = 3, 
-                 n_features: int = 2,
+                 feature_shape: Tuple[int, ...] = (2,),
                  **kwargs) -> Any:
         """
         Get a model of the specified type with the given hyperparameters.
@@ -53,18 +53,18 @@ class ModelSelector:
             model_type: Type of model to create
                        ('mlp', 'cnn', 'rnn', 'random_forest', 'gradient_boosting', 'svm', 'logistic')
             n_classes: Number of classes for classification
-            n_features: Number of input features
+            feature_shape: Shape of the input features
             **kwargs: Additional hyperparameters specific to the chosen model
             
         Returns:
             The configured model
         """
         if model_type == 'mlp':
-            return self._get_mlp_model(n_classes, n_features, **kwargs)
+            return self._get_mlp_model(n_classes, feature_shape, **kwargs)
         elif model_type == 'cnn':
-            return self._get_cnn_model(n_classes, n_features, **kwargs)
+            return self._get_cnn_model(n_classes, feature_shape, **kwargs)
         elif model_type == 'rnn':
-            return self._get_rnn_model(n_classes, n_features, **kwargs)
+            return self._get_rnn_model(n_classes, feature_shape, **kwargs)
         elif model_type == 'random_forest':
             return self._get_random_forest_model(n_classes, **kwargs)
         elif model_type == 'gradient_boosting':
@@ -78,7 +78,7 @@ class ModelSelector:
     
     def _get_mlp_model(self, 
                       n_classes: int, 
-                      n_features: int,
+                      feature_shape: Tuple[int, ...],
                       hidden_layers: List[int] = [128, 64],
                       activation: str = 'relu',
                       dropout_rate: float = 0.2,
@@ -90,7 +90,7 @@ class ModelSelector:
         
         Args:
             n_classes: Number of classes for classification
-            n_features: Number of input features
+            feature_shape: Shape of the input features
             hidden_layers: List of neurons in each hidden layer
             activation: Activation function for hidden layers
             dropout_rate: Dropout rate for regularization
@@ -102,7 +102,7 @@ class ModelSelector:
             Configured MLP model
         """
         # Input layer
-        inputs = layers.Input(shape=(n_features,), name='input')
+        inputs = layers.Input(shape=feature_shape, name='input')
         x = inputs
         
         # Hidden layers
@@ -157,7 +157,7 @@ class ModelSelector:
     
     def _get_cnn_model(self, 
                       n_classes: int, 
-                      n_features: int,
+                      feature_shape: Tuple[int, ...],
                       conv_layers: List[int] = [32, 64, 128],
                       kernel_size: int = 3,
                       pool_size: int = 2,
@@ -172,7 +172,7 @@ class ModelSelector:
         
         Args:
             n_classes: Number of classes for classification
-            n_features: Number of input features
+            feature_shape: Shape of the input features
             conv_layers: List of filters in each convolutional layer
             kernel_size: Size of convolutional kernels
             pool_size: Size of pooling windows
@@ -186,11 +186,8 @@ class ModelSelector:
         Returns:
             Configured CNN model
         """
-        # For image data, we expect the input to already be in the correct shape (height, width, channels)
-        # Instead of trying to reshape, we'll use the input shape directly
-        
-        # Input layer - directly use the shape from the data
-        inputs = layers.Input(shape=(32, 32, 1), name='input')
+        # Input layer
+        inputs = layers.Input(shape=feature_shape, name='input')
         
         # Convolutional layers
         x = inputs
@@ -262,7 +259,7 @@ class ModelSelector:
     
     def _get_rnn_model(self, 
                       n_classes: int, 
-                      n_features: int,
+                      feature_shape: Tuple[int, ...],
                       rnn_units: List[int] = [64, 32],
                       rnn_type: str = 'lstm',
                       bidirectional: bool = True,
@@ -277,7 +274,7 @@ class ModelSelector:
         
         Args:
             n_classes: Number of classes for classification
-            n_features: Number of input features
+            feature_shape: Shape of the input features
             rnn_units: List of units in each RNN layer
             rnn_type: Type of RNN cell ('lstm', 'gru', 'simple')
             bidirectional: Whether to use bidirectional RNN
@@ -291,12 +288,8 @@ class ModelSelector:
         Returns:
             Configured RNN model
         """
-        # Reshape input for RNN
-        sequence_length = int(np.sqrt(n_features))
-        feature_dim = int(n_features / sequence_length)
-        
         # Input layer
-        inputs = layers.Input(shape=(sequence_length, feature_dim), name='input')
+        inputs = layers.Input(shape=feature_shape, name='input')
         
         # RNN layers
         x = inputs
@@ -518,23 +511,102 @@ class ModelSelector:
         
         return model
 
+from typing import Tuple, List, Dict
+
+def generate_cnn_params(feature_shape: Tuple[int, ...]) -> Dict:
+    """
+    Generate parameters for the _get_cnn_model function based on the input feature shape.
+
+    Args:
+        feature_shape: Shape of the input images (e.g., (height, width, channels)).
+
+    Returns:
+        A dictionary containing parameters for the CNN model.
+    """
+    # Initialize parameters with default values
+    params = {
+        'conv_layers': [],
+        'kernel_size': 3,
+        'pool_size': 2,
+        'dense_layers': [],
+        'activation': 'relu',
+        'dropout_rate': 0.2,
+        'l2_reg': 0.001,
+        'learning_rate': 0.001
+    }
+
+    # Determine the scale of the input image
+    height, width, channels = feature_shape
+    input_size = height * width
+
+    # Set convolutional layers based on input size
+    if input_size <= 32 * 32:
+        # Small images (e.g., CIFAR-10)
+        params['conv_layers'] = [32, 64, 128]
+        params['dense_layers'] = [128]
+    elif input_size <= 64 * 64:
+        # Medium images
+        params['conv_layers'] = [64, 128, 256]
+        params['dense_layers'] = [256, 128]
+    else:
+        # Large images (e.g., ImageNet)
+        params['conv_layers'] = [64, 128, 256, 512]
+        params['dense_layers'] = [512, 256]
+
+    # Adjust dropout rate based on model complexity
+    total_layers = len(params['conv_layers']) + len(params['dense_layers'])
+    if total_layers > 6:
+        params['dropout_rate'] = 0.3
+
+    # Adjust learning rate based on input size
+    if input_size >= 224 * 224:
+        params['learning_rate'] = 0.0001
+
+    return params
+
+def get_model_selector_cnn_example_model(input_shape = None, selector: ModelSelector = None):
+    # Create a model selector
+    if selector is None:
+        selector = ModelSelector(random_state=42)
+
+    # Get a CNN model
+    #feature_shape = (28, 28, 1)
+    if input_shape is None:
+        feature_shape = (28, 28, 1)
+    else:
+        feature_shape = input_shape
+
+    cnn_params = generate_cnn_params(feature_shape)
+    # Get a CNN model
+    model = selector.get_model(
+        model_type='cnn',
+        n_classes=10,
+        feature_shape=feature_shape,
+        conv_layers=cnn_params['conv_layers'],
+        dense_layers=cnn_params['dense_layers'],
+        kernel_size=cnn_params['kernel_size'],
+        pool_size=cnn_params['pool_size'],
+        activation=cnn_params['activation'],
+        dropout_rate=cnn_params['dropout_rate'],
+        l2_reg=cnn_params['l2_reg'],
+        learning_rate=cnn_params['learning_rate']
+    )
+
+    print("Extended Convolutional Layers:", cnn_params['conv_layers'])
+    print("Extended Dense Layers:", cnn_params['dense_layers'])
+    
+    # Print model summary
+    model.summary()
+    return model
+
 
 # Example usage
 if __name__ == "__main__":
     # Create a model selector
     selector = ModelSelector(random_state=42)
-    
+
     # Get a CNN model
-    model = selector.get_model(
-        model_type='cnn',
-        n_classes=10,
-        n_features=32*32,
-        conv_layers=[32, 64, 128],
-        dense_layers=[128, 64]
-    )
-    
-    # Print model summary
-    model.summary()
+    model = get_model_selector_cnn_example_model(input_shape=(28, 28, 1), selector=selector)
     
     # Get a Random Forest model
     rf_model = selector.get_model(
