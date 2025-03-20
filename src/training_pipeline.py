@@ -456,6 +456,8 @@ class TrainingPipeline:
         
         # Save or show the plot
         if save_path:
+            # Check if the save directory exists - ensure it does
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
             plt.close()
         else:
@@ -592,9 +594,149 @@ class TrainingPipeline:
         
         return self.model
 
+# Write a function to split a training set into a training and validation set
+def train_val_split(X_train: np.ndarray, y_train: np.ndarray, val_size: float = 0.1) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Split a training set into a training and validation set.
+    
+    Args:
+        X_train: Training features
+        y_train: Training labels
+        val_size: Fraction of the training data to use as validation
+        
+    Returns:
+        Training features, validation features, training labels, validation labels
+    """
+    # Determine the size of the validation set
+    val_size = int(len(X_train) * val_size)
+    
+    # Split the training data into training and validation sets
+    X_val = X_train[-val_size:]
+    y_val = y_train[-val_size:]
+    X_train = X_train[:-val_size]
+    y_train = y_train[:-val_size]
+    
+    return (X_train, y_train) , (X_val, y_val)
 
-# Example usage
-if __name__ == "__main__":
+
+# Basic MNIST Example
+def basic_mnist_example():
+    """
+    Basic example using the MNIST dataset.
+    """
+    # Load the MNIST dataset
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+
+    # Create a separate validation set
+    x_train, x_val = x_train[:-5000], x_train[-5000:]
+    y_train, y_val = y_train[:-5000], y_train[-5000:]
+
+    # Preprocess the data
+    x_train = x_train.astype('float32') / 255.0
+    x_test = x_test.astype('float32') / 255.0
+
+    # Define the model
+    model = tf.keras.models.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28)),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+    ])
+
+    # Compile the model
+    model.compile(optimizer='adam',
+                loss='sparse_categorical_crossentropy',
+                metrics=['accuracy'])
+
+    # Train the model
+    model.fit(x_train, y_train, epochs=5)
+
+    # Evaluate the model
+    loss, accuracy = model.evaluate(x_test, y_test, verbose=0)
+    print('Test loss:', loss)
+    print('Test accuracy:', accuracy)
+
+
+def demo_incorporated_mnist_example():
+    """
+    Basic example using the MNIST dataset to test all custom functions.
+    """
+
+    # Establish save path
+    save_dir = './results/training_pipeline_main'
+
+    # Load the MNIST dataset
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+
+    # Create a separate validation set
+    (x_train, y_train), (x_val, y_val) = train_val_split(x_train, y_train, val_size=0.1)
+
+    # Preprocess the data
+    x_train = x_train.astype('float32') / 255.0
+    x_test = x_test.astype('float32') / 255.0
+
+    # Define the model
+    model = tf.keras.models.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28)),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+    ])
+
+    # Compile the model
+    model.compile(optimizer='adam',
+                loss='sparse_categorical_crossentropy',
+                metrics=['accuracy'])
+
+    # Create a training pipeline
+    pipeline = TrainingPipeline(model=model, model_type='keras')
+    
+    # Train the model
+    # Create callbacks
+    callbacks = [
+        tf.keras.callbacks.ModelCheckpoint(
+            os.path.join(save_dir, 'best_model.h5'),
+            monitor='val_loss',
+            save_best_only=True,
+            mode='min',
+            verbose=1
+        ),
+        tf.keras.callbacks.EarlyStopping(
+            monitor='val_loss',
+            patience=10,
+            restore_best_weights=True,
+            verbose=1
+        )
+    ]
+    
+    # Train with validation
+    history = pipeline.train(
+        X_train=x_train,
+        y_train=y_train,
+        X_val=x_val,
+        y_val=y_val,
+        batch_size=32,
+        epochs=5,
+        callbacks=callbacks
+    )
+    
+    # Evaluate the model
+    metrics = pipeline.evaluate(X_test=x_test, y_test=y_test)
+    
+    # Print metrics
+    print("\nEvaluation Metrics:")
+    for metric, value in metrics.items():
+        print(f"{metric}: {value:.4f}")
+    
+    # Plot training history
+    pipeline.plot_training_history(save_path=f"{save_dir}/training_history.png")
+    
+    # Plot confusion matrix
+    pipeline.plot_confusion_matrix(X_test=x_test, y_test=y_test)
+
+def original_main():
+    
+    # Establish save path
+    save_dir = './results/training_pipeline_main'
+
     # Create a simple model
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=(32, 32, 1)),
@@ -637,7 +779,13 @@ if __name__ == "__main__":
         print(f"{metric}: {value:.4f}")
     
     # Plot training history
-    pipeline.plot_training_history()
+    pipeline.plot_training_history(save_path=f"{save_dir}/training_history.png")
     
     # Plot confusion matrix
     pipeline.plot_confusion_matrix(X_test=X_test, y_test=y_test)
+
+# Example usage
+if __name__ == "__main__":
+    demo_incorporated_mnist_example()
+
+
