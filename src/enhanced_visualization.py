@@ -224,105 +224,26 @@ class DataVisualizer:
         else:
             plt.show()
     
-    def visualize_confusion_matrix_with_examples(self,
-                                               X_test: np.ndarray,
-                                               y_test: np.ndarray,
-                                               y_pred: np.ndarray,
-                                               class_names: Optional[List[str]] = None,
-                                               n_examples: int = 2,
-                                               save_path: Optional[str] = None) -> None:
-        """
-        Visualize confusion matrix with example images for each cell.
-        
-        Args:
-            X_test: Test features
-            y_test: Test labels (ground truth)
-            y_pred: Predicted labels
-            class_names: Names of the classes
-            n_examples: Number of example images to show per cell
-            save_path: Path to save the visualization
-        """
-        # Get number of classes
-        n_classes = len(np.unique(np.concatenate([y_test, y_pred])))
-        
-        # Determine class names if not provided
+    def visualize_confusion_matrix_with_examples(self, prepared_confusion_matrix, class_names, examples, save_path):
+        """Visualize confusion matrix with example images."""
+        fig = plt.figure(figsize=(10, 10))
         if class_names is None:
-            class_names = [f'Class {i}' for i in range(n_classes)]
+            class_names = [f'Class {i}' for i in range(len(prepared_confusion_matrix))]
         
-        # Ensure X_test has the right shape for visualization
-        X_test_vis = self._prepare_for_visualization(X_test)
+        grid_size = len(class_names)
+
         
-        # Calculate confusion matrix
-        cm = confusion_matrix(y_test, y_pred)
+        for k in range(grid_size * grid_size):
+            mini_ax = plt.subplot2grid((grid_size, grid_size), (k // grid_size, k % grid_size))
+            mini_ax.axis('off')
+            
+            if k < len(examples):
+                mini_ax.imshow(examples[k], cmap='gray')
+                mini_ax.set_title(f"{class_names[k // grid_size]} vs {class_names[k % grid_size]}")
         
-        # Create figure
-        fig = plt.figure(figsize=(n_classes * 3, n_classes * 3))
-        
-        # Create GridSpec
-        gs = GridSpec(n_classes, n_classes, figure=fig)
-        
-        # Plot confusion matrix with examples
-        for i in range(n_classes):  # True label
-            for j in range(n_classes):  # Predicted label
-                # Get cell count
-                count = cm[i, j]
-                
-                # Create subplot
-                ax = fig.add_subplot(gs[i, j])
-                
-                # If there are examples for this cell
-                if count > 0:
-                    # Get indices of examples
-                    indices = np.where((y_test == i) & (y_pred == j))[0]
-                    
-                    # Limit number of examples
-                    n_to_show = min(n_examples, len(indices))
-                    
-                    # Calculate grid dimensions
-                    grid_size = int(np.ceil(np.sqrt(n_to_show)))
-                    
-                    # Create mini-grid for examples
-                    for k in range(n_to_show):
-                        idx = indices[k]
-                        mini_ax = plt.subplot2grid((grid_size, grid_size), (k // grid_size, k % grid_size), 
-                                                 fig=fig, subplot_spec=ax)
-                        mini_ax.imshow(X_test_vis[idx], cmap='gray')
-                        mini_ax.axis('off')
-                    
-                    # Fill remaining grid cells
-                    for k in range(n_to_show, grid_size * grid_size):
-                        mini_ax = plt.subplot2grid((grid_size, grid_size), (k // grid_size, k % grid_size), 
-                                                 fig=fig, subplot_spec=ax)
-                        mini_ax.axis('off')
-                    
-                    # Set cell background color
-                    if i == j:  # Correct prediction
-                        ax.set_facecolor('lightgreen')
-                    else:  # Incorrect prediction
-                        ax.set_facecolor('lightcoral')
-                else:
-                    ax.text(0.5, 0.5, '0', fontsize=20, ha='center', va='center')
-                    ax.axis('on')
-                
-                # Add count as title
-                ax.set_title(f'Count: {count}')
-                
-                # Add labels for first column and last row
-                if j == 0:
-                    ax.set_ylabel(f'True: {class_names[i]}', fontsize=12)
-                if i == n_classes - 1:
-                    ax.set_xlabel(f'Pred: {class_names[j]}', fontsize=12)
-        
-        # Adjust layout
         plt.tight_layout()
-        plt.suptitle('Confusion Matrix with Examples', fontsize=16, y=1.02)
-        
-        # Save or show the plot
-        if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
-            plt.close()
-        else:
-            plt.show()
+        plt.savefig(save_path)
+        plt.close(fig)
     
     def visualize_residuals_by_image(self,
                                    X_test: np.ndarray,
@@ -698,6 +619,9 @@ class DataVisualizer:
         Returns:
             Dictionary mapping visualization names to file paths
         """
+        if class_names is None:
+            class_names = [f'Class {i}' for i in range(len(np.unique(y_test)))]
+
         # Create visualization directory
         os.makedirs(self.save_dir, exist_ok=True)
         
@@ -732,11 +656,12 @@ class DataVisualizer:
         
         # 3. Visualize confusion matrix with examples
         confusion_matrix_path = os.path.join(self.save_dir, 'confusion_matrix_with_examples.png')
+        prepared_confusion_matrix = confusion_matrix(y_test, y_pred)
+        examples = X_test[:len(prepared_confusion_matrix)]  # Assuming examples are the first few test samples
         self.visualize_confusion_matrix_with_examples(
-            X_test=X_test,
-            y_test=y_test,
-            y_pred=y_pred,
+            prepared_confusion_matrix=prepared_confusion_matrix,
             class_names=class_names,
+            examples=examples,
             save_path=confusion_matrix_path
         )
         visualization_paths['confusion_matrix'] = confusion_matrix_path

@@ -1,3 +1,7 @@
+results/
+src/__pycache__/
+*.pyc
+src/__pycache__/*.pyc
 /.venv/
 /data
 /run_output/
@@ -10,7 +14,7 @@ persisted_vector_store/
 demo_scenario_data/qerl_visualize.pdf
 project_arch_refactor/data/
 project_arch_refactor/project_output/
-*.pyc
+
 project_arch_refactor/data
 /overleaf_paper/671aa220e24f37ca532aedab
 *.tex
@@ -19,3 +23,9 @@ ml_simulation.egg-info/PKG-INFO
 ml_simulation.egg-info/requires.txt
 ml_simulation.egg-info/SOURCES.txt
 ml_simulation.egg-info/top_level.txt
+src/__pycache__/image_data_generator.cpython-312.pyc
+src/__pycache__/model_selector.cpython-312.pyc
+src/__pycache__/residuals_analyzer.cpython-312.pyc
+src/__pycache__/training_pipeline.cpython-312.pyc
+src/__pycache__/visualization_analyzer.cpython-312.pyc
+src/__pycache__/image_data_generator.cpython-312.pyc

@@ -368,10 +368,11 @@ def enhanced_visualization(config, data_splits, intermediate_reps, softmax_outpu
     return visualization_paths
 
 
-def main():
+def main(args=None):
     """Main function."""
     # Parse arguments
-    args = parse_args()
+    if args is None:
+        args = parse_args()
     
     # Create configuration dictionary
     config = vars(args)
@@ -424,4 +425,16 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    #main()
+    #Here we will run the demo script as if the following command were executed in the terminal:
+    #enhanced_demo.py --data_method shapes --n_classes 5 --model_type cnn --hidden_layers 128,64 --epochs 50 --n_samples 100 --enhanced_visualization
+    #We will use the default values for the rest of the arguments
+    args = parse_args()
+    args.data_method = 'shapes'
+    args.n_classes = 5
+    args.model_type = 'cnn'
+    args.hidden_layers = '128,64'
+    args.epochs = 500
+    args.n_samples = 100
+    args.enhanced_visualization = True
+    main(args)
