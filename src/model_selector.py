@@ -564,7 +564,13 @@ def generate_cnn_params(feature_shape: Tuple[int, ...]) -> Dict:
 
     return params
 
-def get_model_selector_cnn_example_model(input_shape = None, selector: ModelSelector = None):
+def get_model_selector_cnn_example_model(input_shape = None, selector: ModelSelector = None, config = None):
+    if config is not None:
+        if 'n_classes' in config:
+            n_classes = config['n_classes']
+    else:
+        n_classes = 10
+    
     # Create a model selector
     if selector is None:
         selector = ModelSelector(random_state=42)
@@ -580,7 +586,7 @@ def get_model_selector_cnn_example_model(input_shape = None, selector: ModelSele
     # Get a CNN model
     model = selector.get_model(
         model_type='cnn',
-        n_classes=10,
+        n_classes=n_classes,
         feature_shape=feature_shape,
         conv_layers=cnn_params['conv_layers'],
         dense_layers=cnn_params['dense_layers'],

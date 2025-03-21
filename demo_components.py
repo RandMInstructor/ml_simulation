@@ -17,8 +17,68 @@ from src.model_selector import ModelSelector
 from src.training_pipeline import TrainingPipeline
 from src.image_data_generator import ImageDataGenerator
 
+from src.visualization_analyzer import VisualizationAnalyzer
+from src.enhanced_visualization import DataVisualizer
+
 from src.training_pipeline import example_training
 from src.training_pipeline import train_from_config
+
+def visualize_results(config, data_splits, intermediate_reps, softmax_outputs, y_pred, residuals_results):
+    """Visualize results with statistical tests."""
+    print("\n=== Visualizing Results with Statistical Tests ===")
+    
+    visualization_results_path = os.path.join(config['output_dir'], 'visualization')
+
+    # Create visualization analyzer
+    visualizer = VisualizationAnalyzer(save_dir=visualization_results_path)
+    
+    # Run full visualization
+    visualization_results = visualizer.run_full_visualization(
+        representations=intermediate_reps,
+        softmax_outputs=softmax_outputs,
+        y_true=data_splits['y_test'],
+        y_pred=y_pred
+    )
+    
+    print(f"Visualization results saved to: {visualization_results_path}")
+    print(f"Statistical tests include both Pearson and Spearman correlation coefficients")
+    
+    return visualization_results
+
+def enhanced_visualization(config, data_splits, intermediate_reps, softmax_outputs, y_pred, residuals_results):
+    """Perform enhanced visualization for data inspection."""
+    print("\n=== Performing Enhanced Visualization ===")
+    enhanced_visualization_path = os.path.join(config['output_dir'], 'enhanced_visualization')
+    # Create data visualizer
+    visualizer = DataVisualizer(save_dir=enhanced_visualization_path)
+    
+    # Extract similarity matrices from residuals results
+    similarity_matrices = residuals_results.get('cosine_similarity', {})
+    
+    # Extract entropies from residuals results
+    entropies = residuals_results.get('entropy', np.array([]))
+    
+    # Run comprehensive visualization
+    visualization_paths = visualizer.run_comprehensive_visualization(
+        X_train=data_splits['X_train'],
+        y_train=data_splits['y_train'],
+        X_val=data_splits['X_val'],
+        y_val=data_splits['y_val'],
+        X_test=data_splits['X_test'],
+        y_test=data_splits['y_test'],
+        y_pred=y_pred,
+        intermediate_reps=intermediate_reps,
+        softmax_outputs=softmax_outputs,
+        similarity_matrices=similarity_matrices,
+        entropies=entropies
+    )
+    
+    print(f"Enhanced visualization results saved to: {enhanced_visualization_path}")
+    
+    return visualization_paths
+
+
+
 def analyze_residuals(config, pipeline : TrainingPipeline, data_splits, model_selector : ModelSelector):
     """Perform residuals analysis on the trained model."""
     print("\n=== Performing Residuals Analysis ===")
@@ -152,6 +212,11 @@ def run_mnist_test():
 
     pipeline.save_pipeline(save_dir)
     
+    # Evaluate model
+    metrics = pipeline.evaluate(
+        X_test=data_splits['X_test'],
+        y_test=data_splits['y_test']
+    )
     
     config = {}
     config['output_dir'] = save_dir
@@ -175,6 +240,7 @@ def run_generated_synthetic_test():
     config['epochs'] = 20
     config['early_stopping'] = True
     config['model_checkpoint'] = True
+    config['enhanced_visualization'] = True
     
 
     # Generate data
@@ -196,7 +262,7 @@ def run_generated_synthetic_test():
     # Create a model selector
     selector = ModelSelector(random_state=random_seed)
     
-    model = get_model_selector_cnn_example_model(input_shape=input_shape, selector=selector)
+    model = get_model_selector_cnn_example_model(input_shape=input_shape, selector=selector, config=config)
  
     # Create a training pipeline
     pipeline = TrainingPipeline(model=model, model_type='keras')
@@ -211,12 +277,49 @@ def run_generated_synthetic_test():
 
     pipeline.save_pipeline(save_dir)
     
+    # Evaluate model
+    metrics = pipeline.evaluate(
+        X_test=data_splits['X_test'],
+        y_test=data_splits['y_test']
+    )
+
+    # Print evaluation metrics
+    print("\nEvaluation Metrics:")
+    for metric, value in metrics.items():
+        print(f"{metric}: {value:.4f}")
     
-    config = {}
-    config['output_dir'] = save_dir
+    # Plot training history
+    pipeline.plot_training_history(
+        save_path=os.path.join(config['output_dir'], 'training_history.png')
+    )
+    
+    # Plot confusion matrix
+    pipeline.plot_confusion_matrix(
+        X_test=data_splits['X_test'],
+        y_test=data_splits['y_test'],
+        normalize='true',
+        save_path=os.path.join(config['output_dir'], 'confusion_matrix.png')
+    )
+
 
     analyze_residuals(config, pipeline, {'X_test': x_test, 'y_test': y_test}, selector)
-
+    
+    # Perform residuals analysis
+    intermediate_reps, softmax_outputs, y_pred, residuals_results = analyze_residuals(
+        config, pipeline, data_splits, selector
+    )
+    
+    # Visualize results with statistical tests
+    visualization_results = visualize_results(
+        config, data_splits, intermediate_reps, softmax_outputs, y_pred, residuals_results
+    )
+    
+    # Perform enhanced visualization if requested
+    if 'enhanced_visualization' in config:
+        if config['enhanced_visualization']:
+            visualization_paths = enhanced_visualization(
+                config, data_splits, intermediate_reps, softmax_outputs, y_pred, residuals_results
+            )
 
 if __name__ == '__main__':
     #run_mnist_test()

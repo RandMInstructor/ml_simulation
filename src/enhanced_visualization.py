@@ -156,7 +156,11 @@ class DataVisualizer:
             save_path: Path to save the visualization
         """
         # Get number of classes
-        n_classes = softmax_outputs.shape[1]
+        #n_classes = softmax_outputs.shape[1]
+        if class_names is not None:
+            n_classes = len(class_names)
+        else:
+            n_classes = len(np.unique(y_test))
         
         # Determine class names if not provided
         if class_names is None:
@@ -620,7 +624,7 @@ class DataVisualizer:
             Dictionary mapping visualization names to file paths
         """
         if class_names is None:
-            class_names = [f'Class {i}' for i in range(len(np.unique(y_test)))]
+            class_names = [f'Class {i}' for i in range(len(np.unique(y_test)))]        # we could also get the class names from the size of similarity_matrices
 
         # Create visualization directory
         os.makedirs(self.save_dir, exist_ok=True)
