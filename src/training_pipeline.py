@@ -544,8 +544,71 @@ class TrainingPipeline:
             plt.show()
         
         return cm
-    
-    def save_model(self, path: Optional[str] = None) -> str:
+
+    def save_pipeline(self, path: Optional[str] = None) -> str:
+        """
+        Save the pipeline state to disk.
+        
+        Args:
+            path: Path to save the pipeline (default: {save_dir}/pipeline.pkl)
+            
+        Returns:
+            Path where the pipeline was saved
+        """
+        
+        # Save the model
+        model_path = self._save_model(path)
+        
+        # Save the pipeline state
+        pipeline_state = {
+            'model_path': model_path,
+            'model_type': self.model_type,
+            'history': self.history,
+            'metrics': self.metrics,
+            'intermediate_representations': self.intermediate_representations,
+            'softmax_outputs': self.softmax_outputs
+        }
+        if path is None:
+            path = os.path.join(self.save_dir, 'pipeline.pkl')
+        else:
+            path = os.path.join(path, 'pipeline.pkl')
+        
+        with open(path, 'wb') as f:
+            pickle.dump(pipeline_state, f)
+        
+        return path
+
+    def load_pipeline(self, path: str) -> Any:
+        """
+        Load a pipeline state from disk.
+        
+        Args:
+            path: Path to load the pipeline from
+            
+        Returns:
+            Loaded pipeline
+        """
+        if path is None:
+            path = os.path.join(self.save_dir, 'pipeline.pkl')
+        else:
+            path = os.path.join(path, 'pipeline.pkl')
+
+        with open(path, 'rb') as f:
+            pipeline_state = pickle.load(f)
+        
+        # Load the model
+        self._load_model(pipeline_state['model_path'])
+        
+        # Restore the pipeline state
+        self.model_type = pipeline_state['model_type']
+        self.history = pipeline_state['history']
+        self.metrics = pipeline_state['metrics']
+        self.intermediate_representations = pipeline_state['intermediate_representations']
+        self.softmax_outputs = pipeline_state['softmax_outputs']
+        
+        return self
+
+    def _save_model(self, path: Optional[str] = None) -> str:
         """
         Save the model to disk.
         
@@ -557,11 +620,13 @@ class TrainingPipeline:
         """
         if path is None:
             path = os.path.join(self.save_dir, 'model')
+        else:
+            path = os.path.join(path, 'pipeline_saved_model')
         
         if self.model_type == 'keras':
-            # Save Keras model
-            self.model.save(f"{path}.h5")
-            saved_path = f"{path}.h5"
+            # Save Keras model in the native format
+            self.model.save(f"{path}.keras")
+            saved_path = f"{path}.keras"
         else:  # sklearn
             # Save scikit-learn model
             with open(f"{path}.pkl", 'wb') as f:
@@ -570,7 +635,7 @@ class TrainingPipeline:
         
         return saved_path
     
-    def load_model(self, path: str) -> Any:
+    def _load_model(self, path: str) -> Any:
         """
         Load a model from disk.
         
@@ -580,7 +645,7 @@ class TrainingPipeline:
         Returns:
             Loaded model
         """
-        if path.endswith('.h5'):
+        if path.endswith('.keras'):
             # Load Keras model
             self.model = tf.keras.models.load_model(path)
             self.model_type = 'keras'
@@ -615,6 +680,7 @@ def train_val_split(X_train: np.ndarray, y_train: np.ndarray, val_size: float = 
     y_val = y_train[-val_size:]
     X_train = X_train[:-val_size]
     y_train = y_train[:-val_size]
+
     
     return (X_train, y_train) , (X_val, y_val)
 
@@ -663,10 +729,6 @@ def basic_public_mnist_example():
     # Load the MNIST dataset
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
 
-    # Create a separate validation set
-    x_train, x_val = x_train[:-5000], x_train[-5000:]
-    y_train, y_val = y_train[:-5000], y_train[-5000:]
-
     # Preprocess the data
     x_train = x_train.astype('float32') / 255.0
     x_test = x_test.astype('float32') / 255.0
@@ -681,6 +743,82 @@ def basic_public_mnist_example():
     loss, accuracy = model.evaluate(x_test, y_test, verbose=0)
     print('Test loss:', loss)
     print('Test accuracy:', accuracy)
+
+
+def example_training(pipeline, x_train, y_train, x_val, y_val, x_test, y_test, save_dir):
+    # Create callbacks
+    callbacks = [
+        tf.keras.callbacks.ModelCheckpoint(
+            os.path.join(save_dir, 'best_model.h5'),
+            monitor='val_loss',
+            save_best_only=True,
+            mode='min',
+            verbose=1
+        ),
+        tf.keras.callbacks.EarlyStopping(
+            monitor='val_loss',
+            patience=10,
+            restore_best_weights=True,
+            verbose=1
+        )
+    ]
+    
+    # Train with validation
+    history = pipeline.train(
+        X_train=x_train,
+        y_train=y_train,
+        X_val=x_val,
+        y_val=y_val,
+        batch_size=32,
+        epochs=3,
+        callbacks=callbacks
+    )
+    return history
+
+def train_from_config(config, pipeline, data_splits):
+    callbacks = [ ]
+    # Add early stopping callback early_stopping is in the config, and is True
+    if 'early_stopping' in config and config['early_stopping']:
+        early_stopping = tf.keras.callbacks.EarlyStopping(
+                monitor='val_loss',
+                patience=10,
+                restore_best_weights=True
+            )
+        callbacks.append(early_stopping)
+    
+    # Add model checkpoint callback if save_checkpoint is in the config, and is True
+    if 'model_checkpoint' in config and config['model_checkpoint']:
+        save_checkpoint = tf.keras.callbacks.ModelCheckpoint(
+                filepath=os.path.join(config['output_dir'], 'best_model.h5'),
+                monitor='val_loss',
+                save_best_only=True
+            )
+        callbacks.append(save_checkpoint)
+        
+    if 'X_val' in data_splits and 'y_val' in data_splits:
+        x_val = data_splits['X_val']
+        y_val = data_splits['y_val']
+    else:
+        x_val = None
+        y_val = None
+
+    if 'batch_size' not in config:
+        config['batch_size'] = 32
+    if 'epochs' not in config:
+        config['epochs'] = 5
+
+    # Train model
+    history = pipeline.train(
+        X_train=data_splits['X_train'],
+        y_train=data_splits['y_train'],
+        X_val=x_val,
+        y_val=y_val,
+        batch_size=config['batch_size'],
+        epochs=config['epochs'],
+        callbacks=callbacks
+    )
+    return history
+
 
 def demo_incorporated_mnist_example(model, save_dir = './results/training_pipeline_main'):
     """
@@ -707,34 +845,8 @@ def demo_incorporated_mnist_example(model, save_dir = './results/training_pipeli
     pipeline = TrainingPipeline(model=model, model_type='keras')
     
     # Train the model
-    # Create callbacks
-    callbacks = [
-        tf.keras.callbacks.ModelCheckpoint(
-            os.path.join(save_dir, 'best_model.h5'),
-            monitor='val_loss',
-            save_best_only=True,
-            mode='min',
-            verbose=1
-        ),
-        tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss',
-            patience=10,
-            restore_best_weights=True,
-            verbose=1
-        )
-    ]
-    
-    # Train with validation
-    history = pipeline.train(
-        X_train=x_train,
-        y_train=y_train,
-        X_val=x_val,
-        y_val=y_val,
-        batch_size=32,
-        epochs=5,
-        callbacks=callbacks
-    )
-    
+    history = example_training(pipeline, x_train, y_train, x_val, y_val, x_test, y_test, save_dir)
+
     # Evaluate the model
     metrics = pipeline.evaluate(X_test=x_test, y_test=y_test)
     

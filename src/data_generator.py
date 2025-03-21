@@ -343,7 +343,7 @@ class DataGenerator:
         return X, y
     
     def preprocess_data(self, X: np.ndarray, 
-                       scale: bool = True,
+                       scale: bool = False,
                        **kwargs) -> np.ndarray:
         """
         Preprocess the generated data.
@@ -442,4 +442,23 @@ class DataGenerator:
                 edgecolors='k'
             )
         
-        p<response clipped><NOTE>To save on context only part of this file has been shown to you. You should retry this tool after you have searched inside the file with `grep -n` in order to find the line numbers of what you are looking for.</NOTE>
+        # Add title and labels
+        plt.title(title)
+        plt.xlabel('Component 1')
+        plt.ylabel('Component 2')
+        
+        # Add legend
+        plt.legend()
+        
+        # Add grid
+        plt.grid(True, linestyle='--', alpha=0.7)
+        
+        # Save or show the plot
+        if save_path:
+            plt.savefig(save_path)
+            print(f"Visualization saved to {save_path}")
+        else:
+            plt.show()
+        
+        # Close the plot to free memory
+        plt.close()
