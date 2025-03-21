@@ -395,7 +395,8 @@ class TrainingPipeline:
             X = X[..., np.newaxis]  # Add channel dimension
         
         # Extract softmax outputs
-        outputs = softmax_model.predict(X, **kwargs)
+        #outputs = softmax_model.predict(X, **kwargs)
+        outputs = self.predict_proba(X)
         
         # Store softmax outputs
         self.softmax_outputs = outputs

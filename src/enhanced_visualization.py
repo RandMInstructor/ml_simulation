@@ -276,7 +276,11 @@ class DataVisualizer:
             save_path: Path to save the visualization
         """
         # Get number of classes
-        n_classes = softmax_outputs.shape[1]
+        #n_classes = softmax_outputs.shape[1]
+        if class_names is not None:
+            n_classes = len(class_names)
+        else:
+            n_classes = len(np.unique(y_test))
         
         # Determine class names if not provided
         if class_names is None:
@@ -351,6 +355,7 @@ class DataVisualizer:
             ]
             
             y_pos = np.arange(len(metrics))
+            metrtic_names = [m[0] for m in metrics]
             values = [m[1] for m in metrics]
             
             ax.barh(y_pos, values, color=['skyblue', 'lightgreen'])

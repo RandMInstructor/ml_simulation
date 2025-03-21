@@ -111,7 +111,7 @@ def analyze_residuals(config, pipeline : TrainingPipeline, data_splits, model_se
         print("Predictions are not equal")
         print(f"{y_pred_pipeline[:10]}...")
         print(f"{y_pred_softmax[:10]}...")
-        print("TODO: See what's going on here with the softmax outputs")
+        print("DONE: See what's going on here with the softmax outputs - Had something weird going on with the model")
     
     y_pred = y_pred_pipeline
 
@@ -237,7 +237,7 @@ def run_generated_synthetic_test():
     random_seed = config['random_seed'] = 42
     config['output_dir'] = save_dir
     config['batch_size'] = 64
-    config['epochs'] = 20
+    config['epochs'] = 10
     config['early_stopping'] = True
     config['model_checkpoint'] = True
     config['enhanced_visualization'] = True
@@ -302,7 +302,7 @@ def run_generated_synthetic_test():
     )
 
 
-    analyze_residuals(config, pipeline, {'X_test': x_test, 'y_test': y_test}, selector)
+    #analyze_residuals(config, pipeline, {'X_test': x_test, 'y_test': y_test}, selector)
     
     # Perform residuals analysis
     intermediate_reps, softmax_outputs, y_pred, residuals_results = analyze_residuals(
