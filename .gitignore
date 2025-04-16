@@ -21,3 +21,4 @@ project_arch_refactor/data
 ml_simulation.egg-info/
 src/__pycache__/
 unit_test_results/
+visualize_sample_generated_images.png

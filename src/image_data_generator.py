@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from typing import Tuple, Dict, Any, Optional, List, Union, Callable
 import os
 from sklearn.model_selection import train_test_split
+from matplotlib.gridspec import GridSpec
 
 
 class ImageDataGenerator:
@@ -36,7 +37,7 @@ class ImageDataGenerator:
                           n_samples: int = 1000, 
                           n_classes: int = 3,
                           image_size: Tuple[int, int] = (32, 32),
-                          **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+                          **kwargs) -> Tuple[np.ndarray, np.ndarray, List[str]]:
         """
         Generate synthetic image data using the specified method.
         
@@ -49,7 +50,7 @@ class ImageDataGenerator:
             **kwargs: Additional parameters specific to the chosen method
             
         Returns:
-            Tuple containing images (X) and labels (y)
+            Tuple containing images (X), labels (y), and class names
         """
         if method == 'shapes':
             return self._generate_shapes(n_samples, n_classes, image_size, **kwargs)
@@ -68,7 +69,7 @@ class ImageDataGenerator:
                         image_size: Tuple[int, int] = (32, 32),
                         shape_types: Optional[List[str]] = None,
                         background_noise: float = 0.05,
-                        **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+                        **kwargs) -> Tuple[np.ndarray, np.ndarray, List[str]]:
         """
         Generate images with different shapes for each class.
         
@@ -81,7 +82,7 @@ class ImageDataGenerator:
             **kwargs: Additional parameters
             
         Returns:
-            Tuple containing images (X) and labels (y)
+            Tuple containing images (X), labels (y), and class names
         """
         height, width = image_size
         
@@ -203,14 +204,15 @@ class ImageDataGenerator:
                 y[sample_idx] = class_idx
                 sample_idx += 1
         
-        return X, y
+        class_names = shape_types[:n_classes]
+        return X, y, class_names
     
     def _generate_patterns(self, 
                           n_samples: int, 
                           n_classes: int,
                           image_size: Tuple[int, int] = (32, 32),
                           pattern_types: Optional[List[str]] = None,
-                          **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+                          **kwargs) -> Tuple[np.ndarray, np.ndarray, List[str]]:
         """
         Generate images with different patterns for each class.
         
@@ -222,7 +224,7 @@ class ImageDataGenerator:
             **kwargs: Additional parameters
             
         Returns:
-            Tuple containing images (X) and labels (y)
+            Tuple containing images (X), labels (y), and class names
         """
         height, width = image_size
         
@@ -312,14 +314,15 @@ class ImageDataGenerator:
                 y[sample_idx] = class_idx
                 sample_idx += 1
         
-        return X, y
+        class_names = pattern_types[:n_classes]
+        return X, y, class_names
     
     def _generate_noise(self, 
                        n_samples: int, 
                        n_classes: int,
                        image_size: Tuple[int, int] = (32, 32),
                        noise_types: Optional[List[str]] = None,
-                       **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+                       **kwargs) -> Tuple[np.ndarray, np.ndarray, List[str]]:
         """
         Generate images with different types of noise for each class.
         
@@ -331,7 +334,7 @@ class ImageDataGenerator:
             **kwargs: Additional parameters
             
         Returns:
-            Tuple containing images (X) and labels (y)
+            Tuple containing images (X), labels (y), and class names
         """
         height, width = image_size
         
@@ -387,14 +390,15 @@ class ImageDataGenerator:
                 y[sample_idx] = class_idx
                 sample_idx += 1
         
-        return X, y
+        class_names = noise_types[:n_classes]
+        return X, y, class_names
     
     def _generate_gradients(self, 
                            n_samples: int, 
                            n_classes: int,
                            image_size: Tuple[int, int] = (32, 32),
                            gradient_types: Optional[List[str]] = None,
-                           **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+                           **kwargs) -> Tuple[np.ndarray, np.ndarray, List[str]]:
         """
         Generate images with different gradient patterns for each class.
         
@@ -406,7 +410,7 @@ class ImageDataGenerator:
             **kwargs: Additional parameters
             
         Returns:
-            Tuple containing images (X) and labels (y)
+            Tuple containing images (X), labels (y), and class names
         """
         height, width = image_size
         
@@ -513,7 +517,8 @@ class ImageDataGenerator:
                 y[sample_idx] = class_idx
                 sample_idx += 1
         
-        return X, y
+        class_names = gradient_types[:n_classes]
+        return X, y, class_names
 
     def preprocess_images(self, images: np.ndarray) -> np.ndarray:
         """
@@ -572,8 +577,9 @@ class ImageDataGenerator:
     def visualize_images(self, 
                          X: np.ndarray, 
                          y: np.ndarray, 
-                         n_images_per_class: int = 5, 
-                         title: str = 'Generated Images', 
+                         n_images_per_class: int = 5,
+                         title: str = 'Generated Images',
+                         class_names: Optional[List[str]] = None, 
                          save_path: Optional[str] = None) -> None:
         """
         Visualize a sample of generated images.
@@ -583,11 +589,15 @@ class ImageDataGenerator:
             y: Array of labels
             n_images_per_class: Number of images to display per class
             title: Title of the plot
+            class_names: List of class names corresponding to class indices
             save_path: Path to save the plot (if None, the plot will be shown)
         """
         n_classes = len(np.unique(y))
-        fig, axes = plt.subplots(n_classes, n_images_per_class, figsize=(n_images_per_class * 2, n_classes * 2))
+        fig = plt.figure(figsize=(n_images_per_class * 2, n_classes * 2))
         fig.suptitle(title, fontsize=16)
+        
+        # Create GridSpec
+        gs = GridSpec(n_classes, n_images_per_class + 1, figure=fig)
         
         # Ensure X has the right shape for visualization
         if len(X.shape) == 4:  # If X has a channel dimension
@@ -597,15 +607,23 @@ class ImageDataGenerator:
         
         for class_idx in range(n_classes):
             class_images = X_vis[y == class_idx]
+            
+            # Add class label
+            ax = fig.add_subplot(gs[class_idx, 0])
+            class_label = f'Class {class_idx}'
+            if class_names:
+                class_label += f' ({class_names[class_idx]})'
+            ax.text(0.5, 0.5, class_label, fontsize=12, ha='center', va='center')
+            ax.axis('off')
+            
             for img_idx in range(min(n_images_per_class, len(class_images))):
-                ax = axes[class_idx, img_idx]
+                ax = fig.add_subplot(gs[class_idx, img_idx + 1])
                 ax.imshow(class_images[img_idx], cmap='gray')
                 ax.axis('off')
-                if img_idx == 0:
-                    ax.set_ylabel(f'Class {class_idx}', fontsize=12)
+            
             # Hide any remaining empty subplots
             for img_idx in range(len(class_images), n_images_per_class):
-                ax = axes[class_idx, img_idx]
+                ax = fig.add_subplot(gs[class_idx, img_idx + 1])
                 ax.axis('off')
         
         plt.tight_layout(rect=[0, 0, 1, 0.95])
@@ -615,3 +633,11 @@ class ImageDataGenerator:
             plt.close()
         else:
             plt.show()
+
+if __name__ == "__main__":
+    # Example Usage
+    generator = ImageDataGenerator(random_state=42)
+    X, y, class_names = generator.generate_image_data(method='shapes', n_samples=1000, n_classes=5)
+    X = generator.preprocess_images(X)
+    splits = generator.split_data(X, y)
+    generator.visualize_images(X, y, class_names=class_names, save_path='visualize_sample_generated_images.png')

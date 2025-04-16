@@ -220,7 +220,7 @@ class ResidualsAnalyzer:
             Entropy values for each observation
         """
         # Calculate entropy for each observation
-        entropies = np.apply_along_axis(entropy, 1, softmax_outputs)
+        entropies = np.apply_along_axis(entropy, 1, softmax_outputs, base=2)
         
         # Store in results
         self.results['entropy'] = entropies

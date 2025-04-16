@@ -104,10 +104,12 @@ class VisualizationAnalyzer:
             
             # Calculate Pearson correlation
             pearson_corr, pearson_p = stats.pearsonr(avg_similarity, cls_entropies)
-            
+            #https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient
+
             # Calculate Spearman's rank correlation
             spearman_corr, spearman_p = stats.spearmanr(avg_similarity, cls_entropies)
-            
+            #https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient
+
             # Store correlation data
             correlation_data.append({
                 'Class': class_names.get(cls, f'Class {cls}'),
@@ -494,7 +496,7 @@ class VisualizationAnalyzer:
         os.makedirs(self.save_dir, exist_ok=True)
         
         # Calculate entropy from softmax outputs
-        entropies = np.apply_along_axis(stats.entropy, 1, softmax_outputs)
+        entropies = np.apply_along_axis(stats.entropy, 1, softmax_outputs, base=2)
         
         # Calculate pairwise cosine similarity between representations
         similarity_matrices = {}
@@ -650,11 +652,11 @@ class VisualizationAnalyzer:
         return correlation_stats
     
     def plot_similarity_entropy_scatter(self,
-                                      similarity_matrices: Dict[int, np.ndarray],
-                                      entropies: np.ndarray,
-                                      y_pred: np.ndarray,
-                                      title: str = 'Similarity vs Entropy Scatter Plots',
-                                      save_path: Optional[str] = None) -> None:
+                                    similarity_matrices: Dict[int, np.ndarray],
+                                    entropies: np.ndarray,
+                                    y_pred: np.ndarray,
+                                    title: str = 'Similarity vs Entropy Scatter Plots',
+                                    save_path: Optional[str] = None) -> None:
         """
         Plot scatter plots of average similarity vs entropy for each class.
         
@@ -694,6 +696,9 @@ class VisualizationAnalyzer:
         # Create figure
         plt.figure(figsize=(n_cols * 5, n_rows * 4))
         
+        # Get the maximum entropy value
+        max_entropy = np.max(entropies)
+        
         # Plot scatter plots for each class
         for i, cls in enumerate(sorted(average_similarities.keys())):
             # Get indices of observations predicted as this class
@@ -714,7 +719,7 @@ class VisualizationAnalyzer:
             plt.scatter(avg_similarity, cls_entropies, alpha=0.7)
             
             # Add regression line
-            x = np.linspace(min(avg_similarity), max(avg_similarity), 100)
+            x = np.linspace(0, 1, 100)
             slope, intercept = np.polyfit(avg_similarity, cls_entropies, 1)
             plt.plot(x, slope * x + intercept, 'r--')
             
@@ -723,8 +728,12 @@ class VisualizationAnalyzer:
             plt.xlabel('Average Cosine Similarity')
             plt.ylabel('Entropy')
             plt.text(0.05, 0.95, f'Pearson: {pearson_corr:.2f} (p={pearson_p:.3f})\nSpearman: {spearman_corr:.2f} (p={spearman_p:.3f})',
-                    transform=plt.gca().transAxes, verticalalignment='top',
-                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                     transform=plt.gca().transAxes, verticalalignment='top',
+                     bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+            
+            # Set axis limits
+            plt.xlim(0, 1)
+            plt.ylim(0, max_entropy)
             
             # Add grid
             plt.grid(True, linestyle='--', alpha=0.7)
